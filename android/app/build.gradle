@@ -47,8 +47,8 @@ android {
         applicationId "com.muty.drink"
         minSdkVersion 16
         targetSdkVersion 29
-        versionCode 2
-        versionName "Second"
+        versionCode 4
+        versionName "Fourth"
     }
 
     signingConfigs {
@@ -62,8 +62,8 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            minifyEnabled false
+            shrinkResources false
             signingConfig signingConfigs.release
         }
     }

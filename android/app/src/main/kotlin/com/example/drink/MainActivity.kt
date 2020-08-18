@@ -1,4 +1,4 @@
-package com.muty.drink
+package com.example.drink
 
 import io.flutter.embedding.android.FlutterActivity
 

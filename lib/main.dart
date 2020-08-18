@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rxdart/subjects.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -121,7 +120,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String _from = "8:00";
   String _to = "20:00";
-  /* String _interval = "60"; */
+  int _interval = 60;
   bool _notifications = true;
 
   final MethodChannel platform =
@@ -192,15 +191,29 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _from = (prefs.getString('from') ?? "8:00");
       _to = (prefs.getString('to') ?? "17:00");
-      /* _interval = (prefs.getString('interval') ?? "60"); */
+      _interval = (prefs.getInt('interval') ?? 60);
       _notifications = (prefs.getBool('notifications') ?? true);
     });
     await _cancelNotification();
-    for (var i = int.parse(_from.substring(0, _from.indexOf(":"))) + 1;
-        i <= int.parse(_to.substring(0, _to.indexOf(":"))) && _notifications;
-        i++) {
-      print(i);
-      await _showDaylyAtTime(i);
+    int fromh = int.parse(_from.substring(0, _from.indexOf(":")));
+    int toh = int.parse(_to.substring(0, _to.indexOf(":")));
+    if (toh < fromh) {
+      toh += 24;
+    }
+    for (var i = fromh * 60; i <= toh * 60 && _notifications; i += _interval) {
+      if (i ~/ 60 < 24) {
+        /* 
+        print(i ~/ 60);
+        print(i % 60);
+        print(" "); */
+        await _showDaylyAtTime(i ~/ 60, i % 60, i);
+      } else {
+        /* 
+        print(i ~/ 60 - 24);
+        print(i % 60);
+        print(" "); */
+        await _showDaylyAtTime(i ~/ 60 - 24, i % 60, i);
+      }
     }
   }
 
@@ -220,13 +233,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /* void _changeInterval(inter) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      prefs.setString('interval', inter);
-      _setTime();
-    });
-  } */
+  void _addInterval() async {
+    if (_interval < 180) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      setState(() {
+        prefs.setInt('interval', _interval + 15);
+        _setTime();
+      });
+    }
+  }
+
+  void _noaddInterval() async {
+    if (_interval > 15) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      setState(() {
+        prefs.setInt('interval', _interval - 15);
+        _setTime();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -245,8 +270,8 @@ class _HomePageState extends State<HomePage> {
           centerTitle: true,
           title: Text(
             'DRINK',
-            style: GoogleFonts.dmSans(
-                fontWeight: FontWeight.bold,
+            style: TextStyle(
+                fontFamily: 'Open Sans',
                 fontSize: 32,
                 letterSpacing: 2,
                 color: Colors.black),
@@ -283,16 +308,16 @@ class _HomePageState extends State<HomePage> {
                           children: <Widget>[
                             Text(
                               "FROM",
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.bold,
+                              style: TextStyle(
+                                  fontFamily: 'OpenSans',
                                   fontSize: 32,
                                   letterSpacing: 2,
                                   color: Colors.black),
                             ),
                             Text(
                               _from,
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.bold,
+                              style: TextStyle(
+                                  fontFamily: 'OpenSans',
                                   fontSize: 32,
                                   letterSpacing: 2,
                                   color: Colors.black),
@@ -357,16 +382,16 @@ class _HomePageState extends State<HomePage> {
                           children: <Widget>[
                             Text(
                               "TO",
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.bold,
+                              style: TextStyle(
+                                  fontFamily: 'OpenSans',
                                   fontSize: 32,
                                   letterSpacing: 2,
                                   color: Colors.black),
                             ),
                             Text(
                               _to,
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.bold,
+                              style: TextStyle(
+                                  fontFamily: 'OpenSans',
                                   fontSize: 32,
                                   letterSpacing: 2,
                                   color: Colors.black),
@@ -417,68 +442,77 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              /* Card(
-                elevation: 5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                shadowColor: myYellow,
-                color: myRed,
-                child: InkWell(
-                  child: Container(
-                    height: 50,
-                    width: 350,
-                    child: Text(
-                      "INTERVAL ${_interval} min",
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 32,
-                          letterSpacing: 2,
-                          color: Colors.black),
-                      textAlign: TextAlign.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  Container(
+                    height: 80,
+                    width: 80,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.remove_circle_outline,
+                        size: 50,
+                      ),
+                      onPressed: () {
+                        _noaddInterval();
+                      },
                     ),
                   ),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      child: CupertinoAlertDialog(
-                        title: Column(
-                          children: <Widget>[
-                            Text("Time between two reminders"),
-                            Container(
-                              height: 150,
-                              width: 250,
-                              child: CupertinoPicker(
-                                useMagnifier: true,
-                                itemExtent: 30,
-                                onSelectedItemChanged: (int index) {
-                                  print(index);
-                                },
-                                children: <Widget>[
-                                  Text("15 min"),
-                                  Text("20 min"),
-                                  Text("30 min"),
-                                  Text("60 min"),
-                                  Text("2 hours"),
-                                  Text("3 hours"),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                  Card(
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    shadowColor: myYellow,
+                    color: myRed,
+                    child: Container(
+                      width: 160,
+                      padding: EdgeInsets.all(8),
+                      child: Column(
+                        children: <Widget>[
+                          Text(
+                            "INTERVAL",
+                            style: TextStyle(
+                                fontFamily: 'OpenSans',
+                                fontSize: 20,
+                                letterSpacing: 2,
+                                color: Colors.black),
+                          ),
+                          Text(
+                            "${_interval} min",
+                            style: TextStyle(
+                                fontFamily: 'OpenSans',
+                                fontSize: 32,
+                                letterSpacing: 2,
+                                color: Colors.black),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ), */
+                    ),
+                  ),
+                  Container(
+                    height: 80,
+                    width: 80,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        size: 50,
+                      ),
+                      onPressed: () {
+                        _addInterval();
+                      },
+                    ),
+                  ),
+                ],
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
                   PaddedRaisedButton(
                     buttonText: Text(
                       'Notifications',
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.bold,
+                      style: TextStyle(
+                          fontFamily: 'OpenSans',
                           fontSize: 16,
                           color: Colors.black),
                     ),
@@ -507,28 +541,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /* Future<void> _showNotification() async {
-    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'drinkId',
-      'Drink',
-      'Refresh yourself',
-      importance: Importance.Max,
-      priority: Priority.High,
-      ticker: 'drink',
-    );
-    var iOSPlatformChannelSpecifics = IOSNotificationDetails();
-    var platformChannelSpecifics = NotificationDetails(
-        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      'Drink now!',
-      'Refresh yourself.',
-      platformChannelSpecifics,
-    );
-  } */
-
-  Future<void> _showDaylyAtTime(int hour) async {
-    var time = Time(hour, 0, 0);
+  Future<void> _showDaylyAtTime(int hour, int minute, int id) async {
+    var time = Time(hour, minute, 0);
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'drinkId',
       'Drink',
@@ -541,37 +555,13 @@ class _HomePageState extends State<HomePage> {
     var platformChannelSpecifics = NotificationDetails(
         androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.showDailyAtTime(
-      0,
+      id,
       'Drink now!',
       'Refresh yourself.',
       time,
       platformChannelSpecifics,
     );
   }
-
-  /* Future<void> _showInsistentNotification() async {
-    var insistentFlag = 4;
-    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'drinkId',
-      'Drink',
-      'Refresh yourself',
-      importance: Importance.Max,
-      priority: Priority.High,
-      ticker: 'drink',
-      additionalFlags: Int32List.fromList([insistentFlag]),
-    );
-    var iOSPlatformChannelSpecifics = IOSNotificationDetails();
-    var platformChannelSpecifics = NotificationDetails(
-        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
-    await flutterLocalNotificationsPlugin.show(
-      /* periodicallyShow */
-      0,
-      'Drink now!',
-      'Refresh yourself.',
-      /*RepeatInterval.EveryMinute, */
-      platformChannelSpecifics,
-    );
-  } */
 
   Future<void> _cancelNotification() async {
     await flutterLocalNotificationsPlugin.cancelAll();
@@ -668,8 +658,8 @@ class SecondScreenState extends State<SecondScreen> {
         backgroundColor: myRed,
         title: Text(
           'Nice job, refreshing!',
-          style: GoogleFonts.dmSans(
-              fontWeight: FontWeight.bold, fontSize: 26, color: Colors.black),
+          style: TextStyle(
+              fontFamily: 'OpenSans', fontSize: 26, color: Colors.black),
         ),
       ),
       body: Center(
@@ -687,18 +677,14 @@ class SecondScreenState extends State<SecondScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
               child: Text(
                 '"${quotes[now].quote}"',
-                style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: Colors.black),
+                style: TextStyle(
+                    fontFamily: 'OpenSans', fontSize: 22, color: Colors.black),
               ),
             ),
             Text(
               '~ ${quotes[now].author}',
-              style: GoogleFonts.dmSans(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.black),
+              style: TextStyle(
+                  fontFamily: 'OpenSans', fontSize: 16, color: Colors.black),
             ),
             RaisedButton(
               onPressed: () {
@@ -710,10 +696,8 @@ class SecondScreenState extends State<SecondScreen> {
               ),
               child: Text(
                 'Go back!',
-                style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.black),
+                style: TextStyle(
+                    fontFamily: 'OpenSans', fontSize: 16, color: Colors.black),
               ),
             ),
           ],
